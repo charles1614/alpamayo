@@ -19,20 +19,41 @@
 
 import torch
 import numpy as np
+import physical_ai_av
 
 from alpamayo_r1.models.alpamayo_r1 import AlpamayoR1
 from alpamayo_r1.load_physical_aiavdataset import load_physical_aiavdataset
 from alpamayo_r1 import helper
 
 
+# Local paths for model and dataset (update these if you used custom paths)
+MODEL_PATH = "/data/models/nvidia/Alpamayo-R1-10B"
+DATASET_PATH = "/data/datasets/nvidia/PhysicalAI-Autonomous-Vehicles"
+
 # Example clip ID
 clip_id = "030c760c-ae38-49aa-9ad8-f5650a545d26"
 print(f"Loading dataset for clip_id: {clip_id}...")
-data = load_physical_aiavdataset(clip_id, t0_us=5_100_000)
+
+# Initialize dataset interface with local directory
+avdi = physical_ai_av.PhysicalAIAVDatasetInterface(
+    local_dir=DATASET_PATH
+)
+
+# Load data (enable streaming as fallback since files were downloaded with local_dir)
+data = load_physical_aiavdataset(
+    clip_id,
+    t0_us=5_100_000,
+    avdi=avdi,
+    maybe_stream=True  # Enable streaming as fallback
+)
 print("Dataset loaded.")
 messages = helper.create_message(data["image_frames"].flatten(0, 1))
 
-model = AlpamayoR1.from_pretrained("nvidia/Alpamayo-R1-10B", dtype=torch.bfloat16).to("cuda")
+# Load model from local directory
+model = AlpamayoR1.from_pretrained(
+    MODEL_PATH,
+    dtype=torch.bfloat16
+).to("cuda")
 processor = helper.get_processor(model.tokenizer)
 
 inputs = processor.apply_chat_template(
